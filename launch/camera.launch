@@ -11,7 +11,7 @@
   <arg name="timeout_tolerance_secs" default="5.0"/>
   <arg name="publish_viz_images" default="true"/>
   <arg name="frame_id_base" default="$(arg ns)/$(arg nn)" />
-  <arg name="respawn" default="false"/>
+  <arg name="respawn" default="true"/>
   <arg name="assume_sw_triggered" default="false"/>
 
   <!-- TODO: Consider removing the group tag and let the includer determine the

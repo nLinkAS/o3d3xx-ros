@@ -244,6 +244,7 @@ public:
       cloud->header = pcl_conversions::toPCL(head);
       this->cloud_pub_.publish(cloud);
 
+      /*
       depth_img = buff->DepthImage();
       sensor_msgs::ImagePtr depth =
         cv_bridge::CvImage(optical_head,
@@ -319,6 +320,7 @@ public:
                              good_bad_map).toImageMsg();
         this->good_bad_pub_.publish(good_bad);
       }
+      */
     }
   }
 
