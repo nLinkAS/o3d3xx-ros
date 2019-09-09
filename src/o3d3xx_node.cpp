@@ -39,6 +39,10 @@
 #include <o3d3xx/Rm.h>
 #include <o3d3xx/Extrinsics.h>
 #include <o3d3xx/Trigger.h>
+#include <pcl/filters/crop_box.h>
+#include <pcl/conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 class O3D3xxNode
 {
@@ -56,9 +60,8 @@ public:
     std::string password;
     int schema_mask;
     std::string frame_id_base;
-
-    ros::NodeHandle nh; // public
     ros::NodeHandle np("~"); // private
+
 
     np.param("ip", camera_ip, o3d3xx::DEFAULT_IP);
     np.param("xmlrpc_port", xmlrpc_port, (int) o3d3xx::DEFAULT_XMLRPC_PORT);
@@ -242,6 +245,31 @@ public:
       // boost::shared_ptr vs std::shared_ptr forces us to make this copy :(
       pcl::copyPointCloud(*(buff->Cloud().get()), *cloud);
       cloud->header = pcl_conversions::toPCL(head);
+
+      pcl::CropBox<o3d3xx::PointT> boxFilter;
+
+      double minX, minY, minZ;
+      double maxX, maxY, maxZ;
+
+
+      this->nh.getParam("/cloud/minX", minX);
+      this->nh.getParam("/cloud/miny", minY);
+      this->nh.getParam("/cloud/minZ", minZ);
+
+      this->nh.getParam("/cloud/maxX", maxX);
+      this->nh.getParam("/cloud/maxY", maxY);
+      this->nh.getParam("/cloud/maxZ", maxZ);
+
+
+      boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 1.0));
+      boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 1.0));
+
+      pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
+
+
+      boxFilter.filter(*cloud);
+
+
       this->cloud_pub_.publish(cloud);
 
       /*
@@ -482,6 +510,10 @@ public:
 
 
 private:
+
+  ros::NodeHandle nh; // public
+
+
   std::uint16_t schema_mask_;
   int timeout_millis_;
   double timeout_tolerance_secs_;
@@ -514,10 +546,14 @@ private:
 
 }; // end: class O3D3xxNode
 
+
+
+
 int main(int argc, char **argv)
 {
   o3d3xx::Logging::Init();
   ros::init(argc, argv, "o3d3xx");
+
   O3D3xxNode().Run();
   return 0;
 }
