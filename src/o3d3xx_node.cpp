@@ -248,12 +248,17 @@ public:
 
       pcl::CropBox<o3d3xx::PointT> boxFilter;
 
-      double minX, minY, minZ;
-      double maxX, maxY, maxZ;
+      double minX = 0.25;
+      double minY = -0.1;
+      double minZ = -0.2;
+
+      double maxX = 1;
+      double maxY = 0.1;
+      double maxZ = 0;
 
 
       this->nh.getParam("/cloud/minX", minX);
-      this->nh.getParam("/cloud/miny", minY);
+      this->nh.getParam("/cloud/minY", minY);
       this->nh.getParam("/cloud/minZ", minZ);
 
       this->nh.getParam("/cloud/maxX", maxX);
@@ -264,8 +269,8 @@ public:
       boxFilter.setMin(Eigen::Vector4f(minX, minY, minZ, 1.0));
       boxFilter.setMax(Eigen::Vector4f(maxX, maxY, maxZ, 1.0));
 
-      pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
 
+      boxFilter.setInputCloud(cloud);
 
       boxFilter.filter(*cloud);
 
