@@ -315,6 +315,10 @@ public:
                o3d3xx::Crop::Response &res)
   {
     if(req.enable_cropping){
+      if(req.min_x < req.max_x && req.min_y < req.max_y && req.min_z < req.max_z){
+        ROS_ERROR("Invalid crop box");
+        return false;
+      }
       boxFilter.setMin(Eigen::Vector4f(req.min_x, req.min_y, req.min_z, 1.0));
       boxFilter.setMax(Eigen::Vector4f(req.max_x, req.max_y, req.max_z, 1.0));
       enable_cropping = true;
