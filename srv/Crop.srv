@@ -1,0 +1,14 @@
+# False: no cropping and the whole cloud will be published
+# True: min max values provided will be used
+bool enable_cropping
+
+# Values for boxfilter in camera frame
+float64 min_x
+float64 min_y
+float64 min_z
+
+float64 max_x
+float64 max_y
+float64 max_z
+
+---
