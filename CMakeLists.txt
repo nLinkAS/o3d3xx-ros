@@ -37,6 +37,7 @@ add_service_files(
   Config.srv
   Rm.srv
   Trigger.srv
+  Crop.srv
   )
 
 generate_messages(
