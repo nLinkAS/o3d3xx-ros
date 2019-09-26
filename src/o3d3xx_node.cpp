@@ -315,7 +315,7 @@ public:
                o3d3xx::Crop::Response &res)
   {
     if(req.enable_cropping){
-      if(req.min_x > req.max_x || req.min_y || req.max_y || req.min_z > req.max_z){
+      if(req.min_x > req.max_x || req.min_y > req.max_y || req.min_z > req.max_z){
         ROS_ERROR("Invalid crop box");
         return false;
       }
