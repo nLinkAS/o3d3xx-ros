@@ -477,7 +477,7 @@ private:
   ros::ServiceServer trigger_srv_;
   ros::ServiceServer crop_srv_;
 
-  bool enable_cropping = true;
+  bool enable_cropping = false;
 }; // end: class O3D3xxNode
 
 
