@@ -39,6 +39,11 @@
 #include <o3d3xx/Rm.h>
 #include <o3d3xx/Extrinsics.h>
 #include <o3d3xx/Trigger.h>
+#include <o3d3xx/Crop.h>
+#include <pcl/filters/crop_box.h>
+#include <pcl/conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 class O3D3xxNode
 {
@@ -56,9 +61,8 @@ public:
     std::string password;
     int schema_mask;
     std::string frame_id_base;
-
-    ros::NodeHandle nh; // public
     ros::NodeHandle np("~"); // private
+
 
     np.param("ip", camera_ip, o3d3xx::DEFAULT_IP);
     np.param("xmlrpc_port", xmlrpc_port, (int) o3d3xx::DEFAULT_XMLRPC_PORT);
@@ -144,6 +148,11 @@ public:
       ("Trigger", std::bind(&O3D3xxNode::Trigger, this,
                             std::placeholders::_1,
                             std::placeholders::_2));
+    this->crop_srv_ =
+      nh.advertiseService<o3d3xx::Crop::Request, o3d3xx::Crop::Response>
+      ("Crop", std::bind(&O3D3xxNode::CropCB, this,
+                            std::placeholders::_1,
+                            std::placeholders::_2));
   }
 
   /**
@@ -170,6 +179,10 @@ public:
     ros::Time last_frame = ros::Time::now();
 
     bool got_uvec = false;
+
+    //Initialize filter with default values
+    boxFilter.setMin(Eigen::Vector4f(0.25, -0.1, -0.2, 1.0));
+    boxFilter.setMax(Eigen::Vector4f(1, 0.1, 0, 1.0));
 
     while (ros::ok())
     {
@@ -242,85 +255,14 @@ public:
       // boost::shared_ptr vs std::shared_ptr forces us to make this copy :(
       pcl::copyPointCloud(*(buff->Cloud().get()), *cloud);
       cloud->header = pcl_conversions::toPCL(head);
+
+      if(enable_cropping){
+        boxFilter.setInputCloud(cloud);
+        boxFilter.filter(*cloud);
+      }
+
       this->cloud_pub_.publish(cloud);
 
-      /*
-      depth_img = buff->DepthImage();
-      sensor_msgs::ImagePtr depth =
-        cv_bridge::CvImage(optical_head,
-                           "mono16",
-                           depth_img).toImageMsg();
-      this->depth_pub_.publish(depth);
-
-      sensor_msgs::ImagePtr amplitude =
-        cv_bridge::CvImage(optical_head,
-                           "mono16",
-                           buff->AmplitudeImage()).toImageMsg();
-      this->amplitude_pub_.publish(amplitude);
-
-      sensor_msgs::ImagePtr raw_amplitude =
-        cv_bridge::CvImage(optical_head,
-                           "mono16",
-                           buff->RawAmplitudeImage()).toImageMsg();
-      this->raw_amplitude_pub_.publish(raw_amplitude);
-
-      confidence_img = buff->ConfidenceImage();
-      sensor_msgs::ImagePtr confidence =
-        cv_bridge::CvImage(optical_head,
-                           "mono8",
-                           confidence_img).toImageMsg();
-      this->conf_pub_.publish(confidence);
-
-      sensor_msgs::ImagePtr xyz_image_msg =
-        cv_bridge::CvImage(head,
-                           sensor_msgs::image_encodings::TYPE_16SC3,
-                           buff->XYZImage()).toImageMsg();
-      this->xyz_image_pub_.publish(xyz_image_msg);
-
-      extrinsics = buff->Extrinsics();
-      o3d3xx::Extrinsics extrinsics_msg;
-      extrinsics_msg.header = optical_head;
-      try
-        {
-          extrinsics_msg.tx = extrinsics.at(0);
-          extrinsics_msg.ty = extrinsics.at(1);
-          extrinsics_msg.tz = extrinsics.at(2);
-          extrinsics_msg.rot_x = extrinsics.at(3);
-          extrinsics_msg.rot_y = extrinsics.at(4);
-          extrinsics_msg.rot_z = extrinsics.at(5);
-        }
-      catch (const std::out_of_range& ex)
-        {
-          ROS_WARN("out-of-range error fetching extrinsics");
-        }
-      this->extrinsics_pub_.publish(extrinsics_msg);
-
-      if (this->publish_viz_images_)
-      {
-        // depth image with better colormap
-        cv::minMaxIdx(depth_img, &min, &max);
-        cv::convertScaleAbs(depth_img, depth_viz_img, 255 / max);
-        cv::applyColorMap(depth_viz_img, depth_viz_img, cv::COLORMAP_JET);
-        sensor_msgs::ImagePtr depth_viz =
-          cv_bridge::CvImage(optical_head,
-                             "bgr8",
-                             depth_viz_img).toImageMsg();
-        this->depth_viz_pub_.publish(depth_viz);
-
-        // show good vs bad pixels as binary image
-        cv::Mat good_bad_map = cv::Mat::ones(confidence_img.rows,
-                                             confidence_img.cols,
-                                             CV_8UC1);
-        cv::bitwise_and(confidence_img, good_bad_map,
-                        good_bad_map);
-        good_bad_map *= 255;
-        sensor_msgs::ImagePtr good_bad =
-          cv_bridge::CvImage(optical_head,
-                             "mono8",
-                             good_bad_map).toImageMsg();
-        this->good_bad_pub_.publish(good_bad);
-      }
-      */
     }
   }
 
@@ -366,6 +308,23 @@ public:
         res.status = ex.code();
       }
 
+    return true;
+  }
+
+  bool CropCB(o3d3xx::Crop::Request &req,
+               o3d3xx::Crop::Response &res)
+  {
+    if(req.enable_cropping){
+      if(req.min_x > req.max_x || req.min_y > req.max_y || req.min_z > req.max_z){
+        ROS_ERROR("Invalid crop box");
+        return false;
+      }
+      boxFilter.setMin(Eigen::Vector4f(req.min_x, req.min_y, req.min_z, 1.0));
+      boxFilter.setMax(Eigen::Vector4f(req.max_x, req.max_y, req.max_z, 1.0));
+      enable_cropping = true;
+    }else {
+      enable_cropping = false;
+    }
     return true;
   }
 
@@ -482,6 +441,10 @@ public:
 
 
 private:
+
+  ros::NodeHandle nh; // public
+
+
   std::uint16_t schema_mask_;
   int timeout_millis_;
   double timeout_tolerance_secs_;
@@ -491,6 +454,7 @@ private:
   o3d3xx::Camera::Ptr cam_;
   o3d3xx::FrameGrabber::Ptr fg_;
   std::mutex fg_mutex_;
+  pcl::CropBox<o3d3xx::PointT> boxFilter;
 
   std::string frame_id_;
   std::string optical_frame_id_;
@@ -511,13 +475,19 @@ private:
   ros::ServiceServer config_srv_;
   ros::ServiceServer rm_srv_;
   ros::ServiceServer trigger_srv_;
+  ros::ServiceServer crop_srv_;
 
+  bool enable_cropping = false;
 }; // end: class O3D3xxNode
+
+
+
 
 int main(int argc, char **argv)
 {
   o3d3xx::Logging::Init();
   ros::init(argc, argv, "o3d3xx");
+
   O3D3xxNode().Run();
   return 0;
 }
