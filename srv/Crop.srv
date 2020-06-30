@@ -2,6 +2,10 @@
 # True: min max values provided will be used
 bool enable_cropping
 
+# False: no filtering
+# True: Removes points so that the dencity is 1p/cm^3
+bool enable_voxel_filter 
+
 # Values for boxfilter in camera frame
 float64 min_x
 float64 min_y
