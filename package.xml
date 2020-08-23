@@ -18,6 +18,7 @@
   <depend>std_msgs</depend>
   <depend>tf</depend>
   <depend>message_generation</depend>
+  <depend>diagnostic_updater</depend>
 
   <test_depend>rostest</test_depend>
 
