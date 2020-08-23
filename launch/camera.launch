@@ -13,6 +13,7 @@
   <arg name="frame_id_base" default="$(arg ns)/$(arg nn)" />
   <arg name="respawn" default="true"/>
   <arg name="assume_sw_triggered" default="false"/>
+  <arg name="diagnostic_period" default="5"/>
 
   <!-- TODO: Consider removing the group tag and let the includer determine the
       namespace using a group. -->
@@ -30,6 +31,7 @@
       <param name="publish_viz_images" value="$(arg publish_viz_images)"/>
       <param name="frame_id_base" value="$(arg frame_id_base)" />
       <param name="assume_sw_triggered" value="$(arg assume_sw_triggered)"/>
+      <param name="diagnostic_period" value="$(arg diagnostic_period)"/>
 
       <!-- if assume_sw_triggered == True -->
       <param name="timeout_millis" value="500"

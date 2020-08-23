@@ -44,6 +44,8 @@
 #include <pcl/conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <diagnostic_updater/diagnostic_updater.h>
+#include <diagnostic_updater/publisher.h>
 
 class O3D3xxNode
 {
@@ -54,7 +56,10 @@ public:
       timeout_tolerance_secs_(5.0),
       publish_viz_images_(false),
       assume_sw_triggered_(false),
-      spinner_(new ros::AsyncSpinner(1))
+      spinner_(new ros::AsyncSpinner(1)),
+      min_freq_(1.0),
+      max_freq_(1000.0), // Set this way to high. It will never trigger a to high freq warning.
+      cloud_frequency_status_(diagnostic_updater::FrequencyStatusParam(&min_freq_, &max_freq_))
   {
     std::string camera_ip;
     int xmlrpc_port;
@@ -62,7 +67,6 @@ public:
     int schema_mask;
     std::string frame_id_base;
     ros::NodeHandle np("~"); // private
-
 
     np.param("ip", camera_ip, o3d3xx::DEFAULT_IP);
     np.param("xmlrpc_port", xmlrpc_port, (int) o3d3xx::DEFAULT_XMLRPC_PORT);
@@ -153,6 +157,9 @@ public:
       ("Crop", std::bind(&O3D3xxNode::CropCB, this,
                             std::placeholders::_1,
                             std::placeholders::_2));
+
+    updater_.setHardwareID("none"); // Set to none to prevent warnings
+    updater_.add(cloud_frequency_status_);
   }
 
   /**
@@ -186,6 +193,9 @@ public:
 
     while (ros::ok())
     {
+      // Update diagnostics
+      updater_.update();
+
       fg_lock.lock();
       if (!this->fg_->WaitForFrame(buff.get(), this->timeout_millis_))
       {
@@ -262,6 +272,7 @@ public:
       }
 
       this->cloud_pub_.publish(cloud);
+      this->cloud_frequency_status_.tick();
 
     }
   }
@@ -478,6 +489,11 @@ private:
   ros::ServiceServer crop_srv_;
 
   bool enable_cropping = false;
+
+  double min_freq_;
+  double max_freq_;
+  diagnostic_updater::Updater updater_;
+  diagnostic_updater::FrequencyStatus cloud_frequency_status_;
 }; // end: class O3D3xxNode
 
 
